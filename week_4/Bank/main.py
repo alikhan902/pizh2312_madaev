@@ -1,4 +1,4 @@
-from module import *
+from depositManager import *
 
 # Ввод значений
 amount: float = float(input("Введите сумму вклада: "))

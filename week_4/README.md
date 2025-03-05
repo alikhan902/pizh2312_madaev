@@ -17,7 +17,7 @@ print(f"Лучший вклад: {best.__class__.__name__}, Итоговая с�
 # Результат
 
 
-module.py
+deposit.py
 
 
 class Deposit:
@@ -47,6 +47,9 @@ class Deposit:
         :return: float - Итоговая сумма (вклад + прибыль)
         """
         return self.amount + self.calculate_profit()
+
+
+deposits.py
 
 
 class FixedDeposit(Deposit):
@@ -90,6 +93,7 @@ class CapitalizedDeposit(Deposit):
         """
         return self.amount * ((1 + self.rate / 100) ** self.term - 1)
 
+depositManager
 
 class DepositManager:
     """
