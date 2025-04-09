@@ -41,6 +41,16 @@ public:
 
 class FileProcessor {
 public:
+    static size_t countUtf8Chars(const string& str) {
+        size_t count = 0;
+        for (size_t i = 0; i < str.size(); ++i) {
+            if ((str[i] & 0xC0) != 0x80) { // Начало символа UTF-8
+                count++;
+            }
+        }
+        return count;
+    }
+
     static void processFile(const string& filename, const Options& opts) {
         ifstream file(filename, ios::binary);
         if (!file) {
@@ -53,7 +63,7 @@ public:
         while (getline(file, line)) {
             lineCount++;
             wordCount += count_if(line.begin(), line.end(), [](char c) { return isspace((unsigned char)c); }) + 1;
-            charCount += line.size();
+            charCount += countUtf8Chars(line); // Подсчет символов с учетом UTF-8
         }
         file.clear();
         file.seekg(0, ios::end);
