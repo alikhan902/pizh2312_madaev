@@ -8,7 +8,7 @@ struct uint2022_t {
     uint32_t data[LIMBS]{};
 };
 
-static_assert(sizeof(uint2022_t) <= 300, "Size of uint2022_t must be no higher than 300 bytes");
+static_assert(sizeof(uint2022_t) <= 300, "Размер uint2022_t не должен превышать 300 байт");
 
 uint2022_t from_uint(uint32_t i);
 

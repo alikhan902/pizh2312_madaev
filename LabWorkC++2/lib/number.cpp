@@ -17,7 +17,7 @@ uint2022_t from_string(const char* buff) {
     std::string str(buff);
 
     for (char c : str) {
-        if (c < '0' || c > '9') throw std::invalid_argument("Invalid digit in string");
+        if (c < '0' || c > '9') throw std::invalid_argument("Некорректная цифра в строке");
         result = result * from_uint(10);
         result = result + from_uint(c - '0');
     }
@@ -29,16 +29,18 @@ uint2022_t from_string(const char* buff) {
 
 uint2022_t operator+(const uint2022_t& lhs, const uint2022_t& rhs) {
     uint2022_t result = {};
-    uint64_t carry = 0;
+    uint64_t carry = 0;  // Храним общий перенос на всех разрядах
 
     for (size_t i = 0; i < LIMBS; ++i) {
         uint64_t sum = uint64_t(lhs.data[i]) + rhs.data[i] + carry;
         result.data[i] = static_cast<uint32_t>(sum);
-        carry = sum >> 32;
-    }
+        carry = sum >> 32;  // Перенос в старший разряд
 
-    if (carry != 0) {
-        throw std::overflow_error("Overflow in uint2022_t addition");
+        // Проверка переполнения на этом разряде
+        if (carry != 0 && i == LIMBS - 1) {  // Если перенос выходит за пределы последнего разряда
+            std::cerr << "Предупреждение: Переполнение при сложении uint2022_t!" << std::endl;
+            throw std::overflow_error("Переполнение при сложении uint2022_t");
+        }
     }
 
     return result;
@@ -46,7 +48,13 @@ uint2022_t operator+(const uint2022_t& lhs, const uint2022_t& rhs) {
 
 uint2022_t operator-(const uint2022_t& lhs, const uint2022_t& rhs) {
     if (lhs < rhs) {
-        throw std::overflow_error("Overflow in uint2022_t subtraction (negative result)");
+        std::cerr << "Предупреждение: Произошло переполнение при вычитании uint2022_t (отрицательный результат). Хотите продолжить (y/n)? ";
+        char choice;
+        std::cin >> choice;
+        if (choice != 'y' && choice != 'Y') {
+            std::cerr << "Операция прервана." << std::endl;
+            throw std::overflow_error("Переполнение при вычитании uint2022_t");
+        }
     }
 
     uint2022_t result = {};
@@ -57,78 +65,64 @@ uint2022_t operator-(const uint2022_t& lhs, const uint2022_t& rhs) {
         if (diff < 0) {
             diff += (1LL << 32);
             borrow = 1;
-        } else {
+        }
+        else {
             borrow = 0;
         }
         result.data[i] = static_cast<uint32_t>(diff);
     }
 
-    // Проверка переполнения: если результат больше левого операнда, это ошибка
     if (borrow != 0) {
-        throw std::overflow_error("Overflow in uint2022_t subtraction");
+        std::cerr << "Предупреждение: Произошло переполнение при вычитании uint2022_t. Хотите продолжить (y/n)? ";
+        char choice;
+        std::cin >> choice;
+        if (choice != 'y' && choice != 'Y') {
+            std::cerr << "Операция прервана." << std::endl;
+            throw std::overflow_error("Переполнение при вычитании uint2022_t");
+        }
     }
 
     return result;
 }
 
 uint2022_t operator*(const uint2022_t& lhs, const uint2022_t& rhs) {
-    uint64_t temp[2 * LIMBS] = {};
-    bool nonZeroLhs = false, nonZeroRhs = false;
+    uint2022_t result = {};  // Результат умножения
+    uint64_t temp[2 * LIMBS] = {};  // Временный массив для хранения промежуточных данных
 
-    // Проверка на ненулевые множители
     for (size_t i = 0; i < LIMBS; ++i) {
-        if (lhs.data[i] != 0) nonZeroLhs = true;
-        if (rhs.data[i] != 0) nonZeroRhs = true;
-    }
-
-    // Умножение
-    for (size_t i = 0; i < LIMBS; ++i) {
-        uint64_t carry = 0;
         for (size_t j = 0; j < LIMBS; ++j) {
-            size_t k = i + j;
-            if (k >= 2 * LIMBS) continue;
-            uint64_t mul = uint64_t(lhs.data[i]) * rhs.data[j];
-            uint64_t sum = temp[k] + mul + carry;
-            carry = sum >> 32;
-            temp[k] = static_cast<uint32_t>(sum);
-        }
-        // Сохраняем остаточный перенос
-        size_t carry_index = i + LIMBS;
-        if (carry_index < 2 * LIMBS) {
-            temp[carry_index] += carry;
-        }
-        else if (carry != 0) {
-            std::cerr << "Overflow in uint2022_t multiplication (carry overflow)" << std::endl;
-            throw std::overflow_error("Overflow in uint2022_t multiplication");
+            uint64_t product = uint64_t(lhs.data[i]) * rhs.data[j];
+            uint64_t sum = temp[i + j] + product;
+            temp[i + j] = static_cast<uint32_t>(sum);  // Записываем результат
+            temp[i + j + 1] += sum >> 32;  // Перенос в следующий разряд
         }
     }
 
-    // Проверка переполнения: старшие LIMBS должны быть нулевые
+    // Проверка на переполнение: если результат выходит за 70 элементов, это переполнение
+    bool overflow = false;
     for (size_t i = LIMBS; i < 2 * LIMBS; ++i) {
         if (temp[i] != 0) {
-            std::cerr << "Overflow in uint2022_t multiplication (higher limbs non-zero)" << std::endl;
-            throw std::overflow_error("Overflow in uint2022_t multiplication");
+            overflow = true;  // Если старший разряд не нулевой — переполнение
+            break;
         }
     }
 
-    uint2022_t result;
-    for (size_t i = 0; i < LIMBS; ++i) {
-        result.data[i] = static_cast<uint32_t>(temp[i]);
+    if (overflow) {
+        std::cerr << "Предупреждение: Произошло переполнение при умножении uint2022_t!" << std::endl;
+        throw std::overflow_error("Переполнение при умножении uint2022_t");
     }
 
-    // Проверка переполнения: если результат стал нулевым, но множители не нули
-    if (result == from_uint(0) && (nonZeroLhs && nonZeroRhs)) {
-        std::cerr << "Overflow in uint2022_t multiplication (unexpected zero result)" << std::endl;
-        throw std::overflow_error("Overflow in uint2022_t multiplication (unexpected zero result)");
+    // Записываем результат в итоговый массив
+    for (size_t i = 0; i < LIMBS; ++i) {
+        result.data[i] = static_cast<uint32_t>(temp[i]);
     }
 
     return result;
 }
 
-
 uint2022_t operator/(const uint2022_t& lhs, const uint2022_t& rhs) {
     if (rhs == from_uint(0)) {
-        throw std::domain_error("Division by zero in uint2022_t");
+        throw std::domain_error("Деление на ноль в uint2022_t");
     }
 
     uint2022_t result = from_uint(0);
@@ -176,7 +170,6 @@ std::pair<uint2022_t, uint8_t> divmod10(const uint2022_t& value) {
     uint2022_t quotient = from_uint(0);
     uint64_t remainder = 0;
 
-    // Используем деление на 10 по 32-битным частям
     for (int i = LIMBS - 1; i >= 0; --i) {
         uint64_t part = (remainder << 32) | value.data[i];
         quotient.data[i] = static_cast<uint32_t>(part / 10);
@@ -190,19 +183,16 @@ std::ostream& operator<<(std::ostream& stream, const uint2022_t& value) {
     uint2022_t temp = value;
     std::string result;
 
-    // Пока число не равно нулю
     while (!(temp == from_uint(0))) {
         auto [quotient, remainder] = divmod10(temp);
-        result += char('0' + remainder);  // Добавляем цифру к строке
-        temp = quotient;  // Обновляем число
+        result += char('0' + remainder);
+        temp = quotient;
     }
 
-    // Если результат пуст, значит число 0
     if (result.empty()) {
         result = "0";
     }
 
-    // Переворачиваем строку для правильного отображения
     std::reverse(result.begin(), result.end());
     stream << result;
     return stream;
