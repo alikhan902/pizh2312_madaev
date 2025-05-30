@@ -1,0 +1,10 @@
+^C:\USERS\USER\DESKTOP\AVTOMAT\LAB1\BUILD\CMAKEFILES\33AF09F733ECB25316E5808557A32B56\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/user/Desktop/Avtomat/Lab1 -BC:/Users/user/Desktop/Avtomat/Lab1/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/user/Desktop/Avtomat/Lab1/build/labwork1.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
